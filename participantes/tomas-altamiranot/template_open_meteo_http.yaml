@@ -1,0 +1,179 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: 9eae1c3e700247c7bda82edec74da50f
+      name: 'Templates/Applications'
+  templates:
+    - uuid: e2eb81b306b342f883562624bcd8aeb8
+      template: 'Open-Meteo by HTTP'
+      name: 'Open-Meteo by HTTP'
+      description: 'Monitors current weather conditions using the Open-Meteo API.'
+      groups:
+        - name: 'Templates/Applications'
+      items:
+        - uuid: a2053cd989d94f17840ae24a7fe24931
+          name: 'Weather: Get current conditions'
+          type: HTTP_AGENT
+          key: openmeteo.current.get
+          delay: 15m
+          history: '0'
+          value_type: TEXT
+          trends: '0'
+          description: 'Master item: raw JSON with the current conditions from the Open-Meteo API.'
+          url: 'https://api.open-meteo.com/v1/forecast'
+          query_fields:
+            - name: latitude
+              value: '{$OPENMETEO.LATITUDE}'
+            - name: longitude
+              value: '{$OPENMETEO.LONGITUDE}'
+            - name: current
+              value: 'temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,uv_index'
+            - name: timezone
+              value: auto
+          tags:
+            - tag: component
+              value: raw
+        - uuid: 11ab97e8b4b4486c9c09e736484ce928
+          name: 'Weather: Relative humidity'
+          type: DEPENDENT
+          key: openmeteo.humidity
+          delay: '0'
+          value_type: FLOAT
+          units: '%'
+          description: 'Relative humidity at 2 meters above ground, in %.'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.current.relative_humidity_2m
+          master_item:
+            key: openmeteo.current.get
+          tags:
+            - tag: component
+              value: environment
+        - uuid: bd9adb31800d43e38dd9741bb356a4bd
+          name: 'Weather: Temperature'
+          type: DEPENDENT
+          key: openmeteo.temperature
+          delay: '0'
+          value_type: FLOAT
+          units: °C
+          description: 'Air temperature at 2 meters above ground.'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.current.temperature_2m
+          master_item:
+            key: openmeteo.current.get
+          tags:
+            - tag: component
+              value: environment
+        - uuid: e50ed387c2aa48329dfc5b5766f025c0
+          name: 'Weather: Apparent temperature'
+          type: DEPENDENT
+          key: openmeteo.temperature.apparent
+          delay: '0'
+          value_type: FLOAT
+          units: °C
+          description: 'Apparent ("feels like") temperature, combining air temperature, humidity and wind.'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.current.apparent_temperature
+          master_item:
+            key: openmeteo.current.get
+          tags:
+            - tag: component
+              value: environment
+          triggers:
+            - uuid: a67d3994b686417a987ae79dae244887
+              expression: 'min(/Open-Meteo by HTTP/openmeteo.temperature.apparent,30m)>{$OPENMETEO.TEMP.APPARENT.MAX.WARN}'
+              name: 'Weather: High apparent temperature'
+              event_name: 'Weather: High apparent temperature (over {$OPENMETEO.TEMP.APPARENT.MAX.WARN}°C for 30m)'
+              opdata: 'Feels like: {ITEM.LASTVALUE1}'
+              priority: WARNING
+              tags:
+                - tag: scope
+                  value: notice
+        - uuid: 2db451517715433ebb1f3e94569ebdc5
+          name: 'Weather: Weather condition'
+          type: DEPENDENT
+          key: openmeteo.weather.code
+          delay: '0'
+          description: 'Current weather condition as a WMO weather code.'
+          valuemap:
+            name: 'WMO weather code'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.current.weather_code
+            - type: DISCARD_UNCHANGED_HEARTBEAT
+              parameters:
+                - 6h
+          master_item:
+            key: openmeteo.current.get
+          tags:
+            - tag: component
+              value: environment
+        - uuid: 25ee56ebc6e84ad59ead330632e1d8ad
+          name: 'Weather: Wind speed'
+          type: DEPENDENT
+          key: openmeteo.wind.speed
+          delay: '0'
+          value_type: FLOAT
+          units: km/h
+          description: 'Wind speed at 10 meters above ground, in km/h.'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.current.wind_speed_10m
+          master_item:
+            key: openmeteo.current.get
+          tags:
+            - tag: component
+              value: environment
+          triggers:
+            - uuid: f213db54a1fc406e9b05d0a5d93e7f74
+              expression: 'min(/Open-Meteo by HTTP/openmeteo.wind.speed,30m)>{$OPENMETEO.WIND.SPEED.MAX.WARN}'
+              name: 'Weather: Strong wind'
+              priority: AVERAGE
+              tags:
+                - tag: scope
+                  value: notice
+      tags:
+        - tag: class
+          value: software
+        - tag: target
+          value: open-meteo
+      macros:
+        - macro: '{$OPENMETEO.LATITUDE}'
+          value: '20.97'
+          description: 'Latitude of the monitored location.'
+        - macro: '{$OPENMETEO.LONGITUDE}'
+          value: '-89.62'
+          description: 'Longitude of the monitored location.'
+        - macro: '{$OPENMETEO.TEMP.APPARENT.MAX.WARN}'
+          value: '40'
+          description: 'Warning threshold of the apparent temperature, in °C.'
+        - macro: '{$OPENMETEO.WIND.SPEED.MAX.WARN}'
+          value: '50'
+          description: 'Warning threshold of the wind speed, in km/h.'
+      valuemaps:
+        - uuid: 98d87bcf1f0440f3ac6069936fed9be9
+          name: 'WMO weather code'
+          mappings:
+            - value: '0'
+              newvalue: 'Clear sky'
+            - value: '1'
+              newvalue: 'Mainly clear'
+            - value: '2'
+              newvalue: 'Partly cloudy'
+            - value: '3'
+              newvalue: Overcast
+            - value: '61'
+              newvalue: 'Slight rain'
+            - value: '63'
+              newvalue: 'Moderate rain'
+            - value: '65'
+              newvalue: 'Heavy rain'
+            - value: '95'
+              newvalue: Thunderstorm
