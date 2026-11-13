@@ -29,6 +29,7 @@ zabbix_export:
               value: 'temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,uv_index'
             - name: timezone
               value: auto
+          description: 'Master item: raw JSON with the current conditions from the Open-Meteo API.'
           tags:
             - tag: component
               value: raw
@@ -39,6 +40,7 @@ zabbix_export:
           delay: '0'
           value_type: FLOAT
           units: '%'
+          description: 'Relative humidity at 2 meters above ground, in %.'
           preprocessing:
             - type: JSONPATH
               parameters:
@@ -47,7 +49,7 @@ zabbix_export:
             key: openmeteo.current.get
           tags:
             - tag: component
-              value: enviroment
+              value: environment
         - uuid: 9333809a62c841e9ae72196485254400
           name: 'Weather: Temperature'
           type: DEPENDENT
@@ -55,6 +57,7 @@ zabbix_export:
           delay: '0'
           value_type: FLOAT
           units: °C
+          description: 'Air temperature at 2 meters above ground.'
           preprocessing:
             - type: JSONPATH
               parameters:
@@ -63,7 +66,7 @@ zabbix_export:
             key: openmeteo.current.get
           tags:
             - tag: component
-              value: enviroment
+              value: environment
         - uuid: f023546fff444173902a43eb5af92de0
           name: 'Weather: Apparent temperature'
           type: DEPENDENT
@@ -71,6 +74,7 @@ zabbix_export:
           delay: '0'
           value_type: FLOAT
           units: °C
+          description: 'Apparent ("feels like") temperature, combining air temperature, humidity and wind.'
           preprocessing:
             - type: JSONPATH
               parameters:
@@ -79,10 +83,10 @@ zabbix_export:
             key: openmeteo.current.get
           tags:
             - tag: component
-              value: enviroment
+              value: environment
           triggers:
             - uuid: bbb1c4a11e23468da54522ed80e89889
-              expression: 'min(/Open-Meteo by HTTP - /openmeteo.temperature.apparent,30m)>{$OPENMETEO.TEMP.APPARENT.MAX.WARN}'
+              expression: 'min(/Open-Meteo by HTTP/openmeteo.temperature.apparent,30m)>{$OPENMETEO.TEMP.APPARENT.MAX.WARN}'
               name: 'Weather: High apparent temperature'
               event_name: 'Weather: High apparent temperature (over {$OPENMETEO.TEMP.APPARENT.MAX.WARN}°C for 30m)'
               opdata: 'Feels like: {ITEM.LASTVALUE1}'
@@ -95,6 +99,7 @@ zabbix_export:
           type: DEPENDENT
           key: openmeteo.weather.code
           delay: '0'
+          description: 'Current weather condition as a WMO weather code.'
           valuemap:
             name: 'WMO weather code'
           preprocessing:
@@ -106,6 +111,9 @@ zabbix_export:
                 - 6h
           master_item:
             key: openmeteo.current.get
+          tags:
+            - tag: component
+              value: environment
         - uuid: 6f8a561b0d054e0d9b1f3c1d1c3c59bf
           name: 'Weather: Wind speed'
           type: DEPENDENT
@@ -113,6 +121,7 @@ zabbix_export:
           delay: '0'
           value_type: FLOAT
           units: km/h
+          description: 'Wind speed at 10 meters above ground, in km/h.'
           preprocessing:
             - type: JSONPATH
               parameters:
@@ -121,10 +130,10 @@ zabbix_export:
             key: openmeteo.current.get
           tags:
             - tag: component
-              value: enviroment
+              value: environment
           triggers:
             - uuid: cc8ad38930814efea020eb9163d116e6
-              expression: 'min(/Open-Meteo by HTTP - /openmeteo.wind.speed,30m)>{$OPENMETEO.WIND.SPEED.MAX.WARN}'
+              expression: 'min(/Open-Meteo by HTTP/openmeteo.wind.speed,30m)>{$OPENMETEO.WIND.SPEED.MAX.WARN}'
               name: 'Weather: Strong wind'
               priority: AVERAGE
               tags:
